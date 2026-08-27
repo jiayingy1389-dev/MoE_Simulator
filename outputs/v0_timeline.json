@@ -1,0 +1,1754 @@
+{
+  "config": {
+    "hardware": {
+      "compute_ops_per_cycle": 32,
+      "compute_startup_cycles": 1,
+      "dma_startup_cycles": 2,
+      "fixed_reserved_bytes": 128,
+      "nonlinear_cycles_per_tile": 3,
+      "off_chip_bytes_per_cycle": 16,
+      "on_chip_capacity_bytes": 288,
+      "workspace_bytes": 128
+    },
+    "model": {
+      "E": 4,
+      "F": 10,
+      "H": 8,
+      "K": 2,
+      "accumulator_bits": 32,
+      "activation_bits": 16,
+      "attention_base_ops": 32,
+      "attention_ops_per_context_token": 8,
+      "f_tile_size": 4,
+      "head_dim": 4,
+      "kv_bits": 8,
+      "num_kv_heads": 2,
+      "qkv_attention_prepare_ops": 64,
+      "topk_merge_ops": 16,
+      "weight_bits": 8
+    },
+    "request": {
+      "decode_length": 2,
+      "initial_prompt_length": 2,
+      "routing_trace": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ]
+    }
+  },
+  "summary": {
+    "compute_cycles": 142,
+    "expert_weight_read_bytes": 960,
+    "first_kv_spill_token": 0,
+    "memory_cycles": 121,
+    "nonlinear_cycles": 36,
+    "off_chip_kv_peak_bytes": 32,
+    "off_chip_kv_read_bytes": 48,
+    "off_chip_kv_write_bytes": 32,
+    "on_chip_kv_peak_bytes": 32,
+    "total_cycles": 263
+  },
+  "timeline": [
+    {
+      "bytes_transferred": 0,
+      "depends_on": null,
+      "duration": 3,
+      "end_cycle": 3,
+      "event_id": 0,
+      "expert_id": null,
+      "off_chip_kv_bytes": 0,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "H": 8,
+        "tokens": 1
+      },
+      "stage": "qkv_attention_prepare",
+      "start_cycle": 0,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 0,
+      "duration": 0,
+      "end_cycle": 3,
+      "event_id": 1,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "head_dim": 4,
+        "num_kv_heads": 2,
+        "tokens": 1
+      },
+      "stage": "place_token_kv",
+      "start_cycle": 3,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 1,
+      "duration": 3,
+      "end_cycle": 6,
+      "event_id": 2,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "head_dim": 4,
+        "num_kv_heads": 2,
+        "tokens": 1
+      },
+      "stage": "kv_write",
+      "start_cycle": 3,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 2,
+      "duration": 3,
+      "end_cycle": 9,
+      "event_id": 3,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "context_length": 3,
+        "head_dim": 4,
+        "num_kv_heads": 2
+      },
+      "stage": "attention_kv_read",
+      "start_cycle": 6,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 3,
+      "duration": 3,
+      "end_cycle": 12,
+      "event_id": 4,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 56,
+      "resource": "compute",
+      "shape": {
+        "H": 8,
+        "context_length": 3
+      },
+      "stage": "attention_compute",
+      "start_cycle": 9,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 4,
+      "duration": 3,
+      "end_cycle": 15,
+      "event_id": 5,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "E": 4,
+        "H": 8
+      },
+      "stage": "router_compute",
+      "start_cycle": 12,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 5,
+      "duration": 0,
+      "end_cycle": 15,
+      "event_id": 6,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_partial_sum_allocate",
+      "start_cycle": 15,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 6,
+      "duration": 6,
+      "end_cycle": 21,
+      "event_id": 7,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 15,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 7,
+      "duration": 5,
+      "end_cycle": 26,
+      "event_id": 8,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 21,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 8,
+      "duration": 3,
+      "end_cycle": 29,
+      "event_id": 9,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 26,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 9,
+      "duration": 4,
+      "end_cycle": 33,
+      "event_id": 10,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 29,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 10,
+      "duration": 3,
+      "end_cycle": 36,
+      "event_id": 11,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 33,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 11,
+      "duration": 6,
+      "end_cycle": 42,
+      "event_id": 12,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 36,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 12,
+      "duration": 5,
+      "end_cycle": 47,
+      "event_id": 13,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 42,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 13,
+      "duration": 3,
+      "end_cycle": 50,
+      "event_id": 14,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 47,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 14,
+      "duration": 4,
+      "end_cycle": 54,
+      "event_id": 15,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 50,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 15,
+      "duration": 3,
+      "end_cycle": 57,
+      "event_id": 16,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 54,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 16,
+      "duration": 4,
+      "end_cycle": 61,
+      "event_id": 17,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 57,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 17,
+      "duration": 3,
+      "end_cycle": 64,
+      "event_id": 18,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 61,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 18,
+      "duration": 3,
+      "end_cycle": 67,
+      "event_id": 19,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 64,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 19,
+      "duration": 3,
+      "end_cycle": 70,
+      "event_id": 20,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 67,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 20,
+      "duration": 2,
+      "end_cycle": 72,
+      "event_id": 21,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 32,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 70,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 21,
+      "duration": 0,
+      "end_cycle": 72,
+      "event_id": 22,
+      "expert_id": 0,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_release",
+      "start_cycle": 72,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 22,
+      "duration": 0,
+      "end_cycle": 72,
+      "event_id": 23,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_partial_sum_allocate",
+      "start_cycle": 72,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 23,
+      "duration": 6,
+      "end_cycle": 78,
+      "event_id": 24,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 72,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 24,
+      "duration": 5,
+      "end_cycle": 83,
+      "event_id": 25,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 78,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 25,
+      "duration": 3,
+      "end_cycle": 86,
+      "event_id": 26,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 83,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 26,
+      "duration": 4,
+      "end_cycle": 90,
+      "event_id": 27,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 86,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 27,
+      "duration": 3,
+      "end_cycle": 93,
+      "event_id": 28,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 90,
+      "tile_id": 0,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 28,
+      "duration": 6,
+      "end_cycle": 99,
+      "event_id": 29,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 93,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 29,
+      "duration": 5,
+      "end_cycle": 104,
+      "event_id": 30,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 99,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 30,
+      "duration": 3,
+      "end_cycle": 107,
+      "event_id": 31,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 104,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 31,
+      "duration": 4,
+      "end_cycle": 111,
+      "event_id": 32,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 107,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 32,
+      "duration": 3,
+      "end_cycle": 114,
+      "event_id": 33,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 111,
+      "tile_id": 1,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 33,
+      "duration": 4,
+      "end_cycle": 118,
+      "event_id": 34,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 114,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 34,
+      "duration": 3,
+      "end_cycle": 121,
+      "event_id": 35,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 118,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 35,
+      "duration": 3,
+      "end_cycle": 124,
+      "event_id": 36,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 121,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 36,
+      "duration": 3,
+      "end_cycle": 127,
+      "event_id": 37,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 124,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 37,
+      "duration": 2,
+      "end_cycle": 129,
+      "event_id": 38,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 32,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 127,
+      "tile_id": 2,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 38,
+      "duration": 0,
+      "end_cycle": 129,
+      "event_id": 39,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_release",
+      "start_cycle": 129,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 39,
+      "duration": 2,
+      "end_cycle": 131,
+      "event_id": 40,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 16,
+      "resource": "compute",
+      "shape": {
+        "H": 8,
+        "K": 2
+      },
+      "stage": "topk_merge",
+      "start_cycle": 129,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 40,
+      "duration": 0,
+      "end_cycle": 131,
+      "event_id": 41,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "token_complete",
+      "start_cycle": 131,
+      "tile_id": null,
+      "token_id": 0
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 41,
+      "duration": 3,
+      "end_cycle": 134,
+      "event_id": 42,
+      "expert_id": null,
+      "off_chip_kv_bytes": 16,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "H": 8,
+        "tokens": 1
+      },
+      "stage": "qkv_attention_prepare",
+      "start_cycle": 131,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 42,
+      "duration": 0,
+      "end_cycle": 134,
+      "event_id": 43,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "head_dim": 4,
+        "num_kv_heads": 2,
+        "tokens": 1
+      },
+      "stage": "place_token_kv",
+      "start_cycle": 134,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 43,
+      "duration": 3,
+      "end_cycle": 137,
+      "event_id": 44,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "head_dim": 4,
+        "num_kv_heads": 2,
+        "tokens": 1
+      },
+      "stage": "kv_write",
+      "start_cycle": 134,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 44,
+      "duration": 4,
+      "end_cycle": 141,
+      "event_id": 45,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "context_length": 4,
+        "head_dim": 4,
+        "num_kv_heads": 2
+      },
+      "stage": "attention_kv_read",
+      "start_cycle": 137,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 45,
+      "duration": 3,
+      "end_cycle": 144,
+      "event_id": 46,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "H": 8,
+        "context_length": 4
+      },
+      "stage": "attention_compute",
+      "start_cycle": 141,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 46,
+      "duration": 3,
+      "end_cycle": 147,
+      "event_id": 47,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "E": 4,
+        "H": 8
+      },
+      "stage": "router_compute",
+      "start_cycle": 144,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 47,
+      "duration": 0,
+      "end_cycle": 147,
+      "event_id": 48,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_partial_sum_allocate",
+      "start_cycle": 147,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 48,
+      "duration": 6,
+      "end_cycle": 153,
+      "event_id": 49,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 147,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 49,
+      "duration": 5,
+      "end_cycle": 158,
+      "event_id": 50,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 153,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 50,
+      "duration": 3,
+      "end_cycle": 161,
+      "event_id": 51,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 158,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 51,
+      "duration": 4,
+      "end_cycle": 165,
+      "event_id": 52,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 161,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 52,
+      "duration": 3,
+      "end_cycle": 168,
+      "event_id": 53,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 165,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 53,
+      "duration": 6,
+      "end_cycle": 174,
+      "event_id": 54,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 168,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 54,
+      "duration": 5,
+      "end_cycle": 179,
+      "event_id": 55,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 174,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 55,
+      "duration": 3,
+      "end_cycle": 182,
+      "event_id": 56,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 179,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 56,
+      "duration": 4,
+      "end_cycle": 186,
+      "event_id": 57,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 182,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 57,
+      "duration": 3,
+      "end_cycle": 189,
+      "event_id": 58,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 186,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 58,
+      "duration": 4,
+      "end_cycle": 193,
+      "event_id": 59,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 189,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 59,
+      "duration": 3,
+      "end_cycle": 196,
+      "event_id": 60,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 193,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 60,
+      "duration": 3,
+      "end_cycle": 199,
+      "event_id": 61,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 196,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 61,
+      "duration": 3,
+      "end_cycle": 202,
+      "event_id": 62,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 199,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 62,
+      "duration": 2,
+      "end_cycle": 204,
+      "event_id": 63,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 32,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 202,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 63,
+      "duration": 0,
+      "end_cycle": 204,
+      "event_id": 64,
+      "expert_id": 1,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_release",
+      "start_cycle": 204,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 64,
+      "duration": 0,
+      "end_cycle": 204,
+      "event_id": 65,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_partial_sum_allocate",
+      "start_cycle": 204,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 65,
+      "duration": 6,
+      "end_cycle": 210,
+      "event_id": 66,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 204,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 66,
+      "duration": 5,
+      "end_cycle": 215,
+      "event_id": 67,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 210,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 67,
+      "duration": 3,
+      "end_cycle": 218,
+      "event_id": 68,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 215,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 68,
+      "duration": 4,
+      "end_cycle": 222,
+      "event_id": 69,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 218,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 69,
+      "duration": 3,
+      "end_cycle": 225,
+      "event_id": 70,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 222,
+      "tile_id": 0,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 64,
+      "depends_on": 70,
+      "duration": 6,
+      "end_cycle": 231,
+      "event_id": 71,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 225,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 71,
+      "duration": 5,
+      "end_cycle": 236,
+      "event_id": 72,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 128,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 231,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 72,
+      "duration": 3,
+      "end_cycle": 239,
+      "event_id": 73,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 236,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 73,
+      "duration": 4,
+      "end_cycle": 243,
+      "event_id": 74,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 239,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 74,
+      "duration": 3,
+      "end_cycle": 246,
+      "event_id": 75,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 4,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 243,
+      "tile_id": 1,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 32,
+      "depends_on": 75,
+      "duration": 4,
+      "end_cycle": 250,
+      "event_id": 76,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_weight_read",
+      "start_cycle": 246,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 76,
+      "duration": 3,
+      "end_cycle": 253,
+      "event_id": 77,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 64,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_gu_compute",
+      "start_cycle": 250,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 77,
+      "duration": 3,
+      "end_cycle": 256,
+      "event_id": 78,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2
+      },
+      "stage": "expert_nonlinear",
+      "start_cycle": 253,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 16,
+      "depends_on": 78,
+      "duration": 3,
+      "end_cycle": 259,
+      "event_id": 79,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "memory",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_weight_read",
+      "start_cycle": 256,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 79,
+      "duration": 2,
+      "end_cycle": 261,
+      "event_id": 80,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 32,
+      "resource": "compute",
+      "shape": {
+        "F_i": 2,
+        "H": 8
+      },
+      "stage": "expert_down_compute",
+      "start_cycle": 259,
+      "tile_id": 2,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 80,
+      "duration": 0,
+      "end_cycle": 261,
+      "event_id": 81,
+      "expert_id": 2,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "expert_release",
+      "start_cycle": 261,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 81,
+      "duration": 2,
+      "end_cycle": 263,
+      "event_id": 82,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 16,
+      "resource": "compute",
+      "shape": {
+        "H": 8,
+        "K": 2
+      },
+      "stage": "topk_merge",
+      "start_cycle": 261,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 82,
+      "duration": 0,
+      "end_cycle": 263,
+      "event_id": 83,
+      "expert_id": null,
+      "off_chip_kv_bytes": 32,
+      "on_chip_kv_bytes": 32,
+      "operations": 0,
+      "resource": "state",
+      "shape": {
+        "H": 8
+      },
+      "stage": "token_complete",
+      "start_cycle": 263,
+      "tile_id": null,
+      "token_id": 1
+    },
+    {
+      "bytes_transferred": 0,
+      "depends_on": 83,
+      "duration": 0,
+      "end_cycle": 263,
+      "event_id": 84,
+      "expert_id": null,
+      "off_chip_kv_bytes": 0,
+      "on_chip_kv_bytes": 0,
+      "operations": 0,
+      "resource": "state",
+      "shape": null,
+      "stage": "release_request_kv",
+      "start_cycle": 263,
+      "tile_id": null,
+      "token_id": null
+    }
+  ],
+  "tokens": [
+    {
+      "end_cycle": 131,
+      "latency": 131,
+      "start_cycle": 0,
+      "token_id": 0
+    },
+    {
+      "end_cycle": 263,
+      "latency": 132,
+      "start_cycle": 131,
+      "token_id": 1
+    }
+  ]
+}

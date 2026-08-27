@@ -1,6 +1,6 @@
 """Single-layer, decode-only MoE V0 orchestration."""
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .compute import ceil_bytes, expert_tile_metrics, f_tiles
 from .config import SimulationConfig
@@ -36,16 +36,25 @@ class MoESimulator:
 
         for token_id, selected_experts in enumerate(request.routing_trace):
             token_start = timeline.current_cycle
+            context_length = request.initial_prompt_length + token_id + 1
+            kv_shape = {
+                "tokens": 1,
+                "num_kv_heads": model.num_kv_heads,
+                "head_dim": model.head_dim,
+            }
             self._add_compute(
                 timeline,
                 memory,
                 token_id,
                 "qkv_attention_prepare",
                 model.qkv_attention_prepare_ops,
+                shape={"tokens": 1, "H": model.H},
             )
 
             placement = memory.place_decode_token(token_id)
-            self._add_state(timeline, memory, token_id, "place_token_kv")
+            self._add_state(
+                timeline, memory, token_id, "place_token_kv", shape=kv_shape
+            )
             if placement.location == "off_chip":
                 if first_spill is None:
                     first_spill = token_id
@@ -55,6 +64,7 @@ class MoESimulator:
                     token_id,
                     "kv_write",
                     placement.bytes_count,
+                    shape=kv_shape,
                 )
 
             off_chip_kv = memory.off_chip_attention_bytes()
@@ -65,9 +75,13 @@ class MoESimulator:
                     token_id,
                     "attention_kv_read",
                     off_chip_kv,
+                    shape={
+                        "context_length": context_length,
+                        "num_kv_heads": model.num_kv_heads,
+                        "head_dim": model.head_dim,
+                    },
                 )
 
-            context_length = request.initial_prompt_length + token_id + 1
             attention_ops = (
                 model.attention_base_ops
                 + context_length * model.attention_ops_per_context_token
@@ -78,6 +92,7 @@ class MoESimulator:
                 token_id,
                 "attention_compute",
                 attention_ops,
+                shape={"context_length": context_length, "H": model.H},
             )
             self._add_compute(
                 timeline,
@@ -85,6 +100,7 @@ class MoESimulator:
                 token_id,
                 "router_compute",
                 2 * model.H * model.E,
+                shape={"H": model.H, "E": model.E},
             )
 
             for expert_id in selected_experts:
@@ -96,8 +112,15 @@ class MoESimulator:
                 token_id,
                 "topk_merge",
                 model.topk_merge_ops,
+                shape={"K": model.K, "H": model.H},
             )
-            completion = self._add_state(timeline, memory, token_id, "token_complete")
+            completion = self._add_state(
+                timeline,
+                memory,
+                token_id,
+                "token_complete",
+                shape={"H": model.H},
+            )
             token_summaries.append(
                 TokenSummary(
                     token_id=token_id,
@@ -142,9 +165,11 @@ class MoESimulator:
             token_id,
             "expert_partial_sum_allocate",
             expert_id=expert_id,
+            shape={"H": model.H},
         )
         for tile_id, tile_f in enumerate(f_tiles(model.F, model.f_tile_size)):
             metrics = expert_tile_metrics(model, tile_f)
+            tile_shape = {"H": model.H, "F_i": tile_f}
             self._add_dma(
                 timeline,
                 memory,
@@ -153,6 +178,7 @@ class MoESimulator:
                 metrics.gu_weight_bytes,
                 expert_id,
                 tile_id,
+                tile_shape,
             )
             self._add_compute(
                 timeline,
@@ -162,12 +188,14 @@ class MoESimulator:
                 metrics.gu_operations,
                 expert_id,
                 tile_id,
+                tile_shape,
             )
             timeline.add_nonlinear(
                 token_id=token_id,
                 stage="expert_nonlinear",
                 expert_id=expert_id,
                 tile_id=tile_id,
+                shape={"F_i": tile_f},
                 on_chip_kv_bytes=memory.on_chip_bytes,
                 off_chip_kv_bytes=memory.off_chip_bytes,
             )
@@ -179,6 +207,7 @@ class MoESimulator:
                 metrics.down_weight_bytes,
                 expert_id,
                 tile_id,
+                tile_shape,
             )
             self._add_compute(
                 timeline,
@@ -188,6 +217,7 @@ class MoESimulator:
                 metrics.down_operations,
                 expert_id,
                 tile_id,
+                tile_shape,
             )
         self._add_state(
             timeline,
@@ -195,6 +225,7 @@ class MoESimulator:
             token_id,
             "expert_release",
             expert_id=expert_id,
+            shape={"H": model.H},
         )
 
     @staticmethod
@@ -206,6 +237,7 @@ class MoESimulator:
         bytes_transferred: int,
         expert_id: Optional[int] = None,
         tile_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None,
     ):
         return timeline.add_dma(
             token_id=token_id,
@@ -213,6 +245,7 @@ class MoESimulator:
             bytes_transferred=bytes_transferred,
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             on_chip_kv_bytes=memory.on_chip_bytes,
             off_chip_kv_bytes=memory.off_chip_bytes,
         )
@@ -226,6 +259,7 @@ class MoESimulator:
         operations: int,
         expert_id: Optional[int] = None,
         tile_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None,
     ):
         return timeline.add_compute(
             token_id=token_id,
@@ -233,6 +267,7 @@ class MoESimulator:
             operations=operations,
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             on_chip_kv_bytes=memory.on_chip_bytes,
             off_chip_kv_bytes=memory.off_chip_bytes,
         )
@@ -244,11 +279,13 @@ class MoESimulator:
         token_id: Optional[int],
         stage: str,
         expert_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None,
     ):
         return timeline.add_state(
             token_id=token_id,
             stage=stage,
             expert_id=expert_id,
+            shape=shape,
             on_chip_kv_bytes=memory.on_chip_bytes,
             off_chip_kv_bytes=memory.off_chip_bytes,
         )

@@ -50,13 +50,20 @@ def test_router_attention_and_expert_operations_follow_formulas(valid_config_dic
     router = next(event for event in first if event.stage == "router_compute")
     attention = next(event for event in first if event.stage == "attention_compute")
     assert router.operations == 2 * config.model.H * config.model.E
+    assert router.shape == {"H": config.model.H, "E": config.model.E}
     assert attention.operations == (
         config.model.attention_base_ops
         + (config.request.initial_prompt_length + 1)
         * config.model.attention_ops_per_context_token
     )
+    assert attention.shape == {
+        "context_length": config.request.initial_prompt_length + 1,
+        "H": config.model.H,
+    }
     expert_zero_ops = sum(event.operations for event in first if event.expert_id == 0)
     assert expert_zero_ops == 6 * config.model.H * config.model.F
+    tile = next(event for event in first if event.stage == "expert_gu_compute")
+    assert tile.shape == {"H": config.model.H, "F_i": config.model.f_tile_size}
 
 
 def test_repeated_expert_weights_are_reloaded_for_each_token(valid_config):

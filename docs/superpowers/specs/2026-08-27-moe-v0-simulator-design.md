@@ -101,6 +101,7 @@ Every event contains at least:
 start_cycle
 end_cycle
 duration
+shape
 token_id
 stage
 resource

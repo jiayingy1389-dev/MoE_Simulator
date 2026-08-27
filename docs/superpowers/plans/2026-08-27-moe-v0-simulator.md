@@ -110,7 +110,7 @@ def load_config(path: Path) -> SimulationConfig:
     return SimulationConfig.from_dict(raw)
 ```
 
-Define result dataclasses with only JSON-native fields after `to_dict()`. `TimelineEvent` fields are `event_id`, `depends_on`, `start_cycle`, `end_cycle`, `duration`, `token_id`, `stage`, `resource`, nullable `expert_id`, nullable `tile_id`, `bytes_transferred`, `operations`, `on_chip_kv_bytes`, and `off_chip_kv_bytes`.
+Define result dataclasses with only JSON-native fields after `to_dict()`. `TimelineEvent` fields are `event_id`, `depends_on`, `start_cycle`, `end_cycle`, `duration`, `shape`, `token_id`, `stage`, `resource`, nullable `expert_id`, nullable `tile_id`, `bytes_transferred`, `operations`, `on_chip_kv_bytes`, and `off_chip_kv_bytes`.
 
 - [ ] **Step 4: Run tests and verify GREEN**
 

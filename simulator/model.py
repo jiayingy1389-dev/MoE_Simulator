@@ -21,6 +21,7 @@ class TimelineEvent(DictRecord):
     resource: str
     expert_id: Optional[int]
     tile_id: Optional[int]
+    shape: Optional[Dict[str, int]]
     bytes_transferred: int
     operations: int
     on_chip_kv_bytes: int

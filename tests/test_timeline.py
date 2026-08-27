@@ -28,6 +28,7 @@ def build_timeline(valid_config):
         stage="expert_nonlinear",
         expert_id=1,
         tile_id=0,
+        shape={"F_i": 4},
         on_chip_kv_bytes=16,
         off_chip_kv_bytes=16,
     )
@@ -74,6 +75,7 @@ def test_event_captures_labels_metrics_and_kv_snapshot(valid_config):
     assert event.stage == "expert_nonlinear"
     assert event.expert_id == 1
     assert event.tile_id == 0
+    assert event.shape == {"F_i": 4}
     assert event.operations == 0
     assert event.bytes_transferred == 0
     assert event.on_chip_kv_bytes == 16

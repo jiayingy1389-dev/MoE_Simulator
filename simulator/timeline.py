@@ -1,6 +1,6 @@
 """Strictly serialized V0 event timeline."""
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .compute import compute_cycles, dma_cycles
 from .config import HardwareConfig
@@ -22,7 +22,8 @@ class Timeline:
         on_chip_kv_bytes: int,
         off_chip_kv_bytes: int,
         expert_id: Optional[int] = None,
-        tile_id: Optional[int] = None
+        tile_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None
     ) -> TimelineEvent:
         if bytes_transferred <= 0:
             raise ValueError("DMA bytes_transferred must be positive")
@@ -33,6 +34,7 @@ class Timeline:
             resource="memory",
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             bytes_transferred=bytes_transferred,
             operations=0,
             on_chip_kv_bytes=on_chip_kv_bytes,
@@ -48,7 +50,8 @@ class Timeline:
         on_chip_kv_bytes: int,
         off_chip_kv_bytes: int,
         expert_id: Optional[int] = None,
-        tile_id: Optional[int] = None
+        tile_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None
     ) -> TimelineEvent:
         if operations <= 0:
             raise ValueError("compute operations must be positive")
@@ -59,6 +62,7 @@ class Timeline:
             resource="compute",
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             bytes_transferred=0,
             operations=operations,
             on_chip_kv_bytes=on_chip_kv_bytes,
@@ -73,7 +77,8 @@ class Timeline:
         on_chip_kv_bytes: int,
         off_chip_kv_bytes: int,
         expert_id: Optional[int] = None,
-        tile_id: Optional[int] = None
+        tile_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None
     ) -> TimelineEvent:
         return self._append(
             duration=self.hardware.nonlinear_cycles_per_tile,
@@ -82,6 +87,7 @@ class Timeline:
             resource="compute",
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             bytes_transferred=0,
             operations=0,
             on_chip_kv_bytes=on_chip_kv_bytes,
@@ -96,7 +102,8 @@ class Timeline:
         on_chip_kv_bytes: int,
         off_chip_kv_bytes: int,
         expert_id: Optional[int] = None,
-        tile_id: Optional[int] = None
+        tile_id: Optional[int] = None,
+        shape: Optional[Dict[str, int]] = None
     ) -> TimelineEvent:
         return self._append(
             duration=0,
@@ -105,6 +112,7 @@ class Timeline:
             resource="state",
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             bytes_transferred=0,
             operations=0,
             on_chip_kv_bytes=on_chip_kv_bytes,
@@ -120,6 +128,7 @@ class Timeline:
         resource: str,
         expert_id: Optional[int],
         tile_id: Optional[int],
+        shape: Optional[Dict[str, int]],
         bytes_transferred: int,
         operations: int,
         on_chip_kv_bytes: int,
@@ -138,6 +147,7 @@ class Timeline:
             resource=resource,
             expert_id=expert_id,
             tile_id=tile_id,
+            shape=shape,
             bytes_transferred=bytes_transferred,
             operations=operations,
             on_chip_kv_bytes=on_chip_kv_bytes,
