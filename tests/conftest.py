@@ -1,0 +1,43 @@
+import copy
+
+import pytest
+
+
+@pytest.fixture
+def valid_config_dict():
+    return copy.deepcopy(
+        {
+            "model": {
+                "H": 8,
+                "F": 10,
+                "E": 4,
+                "K": 2,
+                "num_kv_heads": 2,
+                "head_dim": 4,
+                "weight_bits": 8,
+                "kv_bits": 8,
+                "activation_bits": 16,
+                "accumulator_bits": 32,
+                "f_tile_size": 4,
+                "attention_base_ops": 32,
+                "attention_ops_per_context_token": 8,
+                "qkv_attention_prepare_ops": 64,
+                "topk_merge_ops": 16,
+            },
+            "request": {
+                "initial_prompt_length": 2,
+                "decode_length": 2,
+                "routing_trace": [[0, 1], [1, 2]],
+            },
+            "hardware": {
+                "on_chip_capacity_bytes": 512,
+                "fixed_reserved_bytes": 128,
+                "workspace_bytes": 128,
+                "off_chip_bytes_per_cycle": 16,
+                "dma_startup_cycles": 2,
+                "compute_ops_per_cycle": 32,
+                "compute_startup_cycles": 1,
+                "nonlinear_cycles_per_tile": 3,
+            },
+        }
+    )
