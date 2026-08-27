@@ -125,6 +125,27 @@ on_chip_kv_bytes, off_chip_kv_bytes
 
 sequence summary 包含 total/memory/compute/nonlinear cycles、片外 KV read/write bytes、Expert weight read bytes、片内/片外 KV peak，以及首次 decode spill token。每个 token 另有 latency、start 和 end。
 
+## 时间轴表格
+
+从现有 JSON 结果生成 CSV 和 Markdown 表格：
+
+```powershell
+python -m simulator.report outputs/v0_timeline.json `
+  --csv outputs/v0_timeline_table.csv `
+  --markdown outputs/v0_timeline_table.md
+```
+
+- `outputs/v0_timeline_table.csv` 适合用 Excel 筛选和绘图。
+- `outputs/v0_timeline_table.md` 可以直接阅读完整的 85 个事件。
+
+表格逐事件显示当前阶段、片上内存预留/占用和片外有效带宽。片上总量采用：
+
+```text
+fixed_reserved_bytes + workspace_reserved_bytes + on_chip_kv_bytes
+```
+
+这里的 Workspace 是配置预留量，不是 Expert 临时 buffer 的动态实测占用。Memory 事件的有效带宽为 `bytes_transferred / duration`，因此 DMA startup 周期也包含在分母中；Compute 和 state 事件的片外带宽为 0。
+
 `configs/v0_synthetic.yaml` 使用 `F=10`、`f_tile_size=4`，因此 tile 为 `[4, 4, 2]`；两个 token 都选择 Expert 1；KV 预算只容纳两个 prompt token，所以第一个 decode token 开始 spill。
 
 该配置的实际摘要为：

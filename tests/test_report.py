@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from simulator.report import ReportError, build_rows
+from simulator.report import (
+    ReportError,
+    build_rows,
+    main,
+    write_csv,
+    write_markdown,
+)
 
 
 @pytest.fixture
@@ -80,3 +86,64 @@ def test_rejects_invalid_report_input(timeline_payload, mutation, match):
     mutation(invalid)
     with pytest.raises(ReportError, match=match):
         build_rows(invalid)
+
+
+def test_writes_deterministic_csv_and_markdown(timeline_payload, tmp_path):
+    rows = build_rows(timeline_payload)
+    csv_first = tmp_path / "first.csv"
+    csv_second = tmp_path / "second.csv"
+    md_first = tmp_path / "first.md"
+    md_second = tmp_path / "second.md"
+    write_csv(rows, csv_first)
+    write_csv(rows, csv_second)
+    write_markdown(rows, md_first)
+    write_markdown(rows, md_second)
+
+    assert csv_first.read_bytes() == csv_second.read_bytes()
+    assert md_first.read_bytes() == md_second.read_bytes()
+    csv_lines = csv_first.read_text(encoding="utf-8").splitlines()
+    markdown = md_first.read_text(encoding="utf-8")
+    markdown_table_lines = [line for line in markdown.splitlines() if line.startswith("|")]
+    assert len(csv_lines) == 86
+    assert len(markdown_table_lines) == 87
+    assert "workspace_reserved_bytes" in csv_lines[0]
+    assert "Workspace is reserved capacity" in markdown
+    kv_write_line = next(line for line in markdown_table_lines if "kv_write" in line)
+    assert "5.33" in kv_write_line
+    assert "33.33%" in kv_write_line
+
+
+def test_report_cli_writes_both_files(timeline_payload, tmp_path, capsys):
+    input_path = tmp_path / "input.json"
+    input_path.write_text(json.dumps(timeline_payload), encoding="utf-8")
+    csv_path = tmp_path / "table.csv"
+    markdown_path = tmp_path / "table.md"
+    assert main(
+        [
+            str(input_path),
+            "--csv",
+            str(csv_path),
+            "--markdown",
+            str(markdown_path),
+        ]
+    ) == 0
+    assert csv_path.exists()
+    assert markdown_path.exists()
+    assert "85 timeline rows" in capsys.readouterr().out
+
+
+def test_report_cli_handles_invalid_input_without_traceback(tmp_path, capsys):
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("{}", encoding="utf-8")
+    assert main(
+        [
+            str(invalid),
+            "--csv",
+            str(tmp_path / "unused.csv"),
+            "--markdown",
+            str(tmp_path / "unused.md"),
+        ]
+    ) == 2
+    captured = capsys.readouterr()
+    assert "error:" in captured.err
+    assert "Traceback" not in captured.err
