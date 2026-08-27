@@ -166,6 +166,16 @@ class SimulationConfig:
                 "must not exceed hardware.on_chip_capacity_bytes"
             )
 
+        from .compute import required_workspace_bytes
+
+        required_workspace = required_workspace_bytes(self.model)
+        if self.hardware.workspace_bytes < required_workspace:
+            raise ConfigError(
+                "hardware.workspace_bytes must be at least {} bytes for the largest expert tile".format(
+                    required_workspace
+                )
+            )
+
         if len(self.request.routing_trace) != self.request.decode_length:
             raise ConfigError("request.routing_trace length must equal request.decode_length")
         for token_id, experts in enumerate(self.request.routing_trace):

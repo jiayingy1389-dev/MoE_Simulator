@@ -41,3 +41,10 @@ def valid_config_dict():
             },
         }
     )
+
+
+@pytest.fixture
+def valid_config(valid_config_dict):
+    from simulator.config import SimulationConfig
+
+    return SimulationConfig.from_dict(valid_config_dict)
