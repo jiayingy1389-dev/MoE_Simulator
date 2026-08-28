@@ -10,6 +10,7 @@ from .model import ExpertKey
 class CacheEntryState(str, Enum):
     LOADING = "LOADING"
     RESIDENT = "RESIDENT"
+    REQUIRED = "REQUIRED"
     IN_COMPUTE = "IN_COMPUTE"
 
 
@@ -53,7 +54,8 @@ class ExpertCache:
     @property
     def resident_count(self) -> int:
         return sum(
-            entry.state == CacheEntryState.RESIDENT for entry in self.entries.values()
+            entry.state in (CacheEntryState.RESIDENT, CacheEntryState.REQUIRED)
+            for entry in self.entries.values()
         )
 
     def reserve_load(
@@ -97,6 +99,21 @@ class ExpertCache:
     def mark_resident(self, key: ExpertKey) -> None:
         if key in self.entries:
             self.entries[key].state = CacheEntryState.RESIDENT
+
+    def mark_required(self, key: ExpertKey) -> None:
+        if (
+            key in self.entries
+            and self.entries[key].state == CacheEntryState.RESIDENT
+        ):
+            self.entries[key].state = CacheEntryState.REQUIRED
+
+    def reserve_workspace(self, key: ExpertKey) -> bool:
+        if key in self.entries or key == self.workspace_key:
+            return True
+        if self.workspace_key is not None or self.workspace_bytes < self.expert_bytes:
+            return False
+        self.workspace_key = key
+        return True
 
     def begin_compute(self, key: ExpertKey, now: int) -> None:
         if key in self.entries:

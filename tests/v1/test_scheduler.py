@@ -54,3 +54,36 @@ def test_inflight_wrong_prefetch_completes_full_transfer(v1_config):
     assert completed[0].bytes == 50
     assert completed[0].prediction_correct is False
     assert completed[0].resource == OFF_CHIP_DMA
+
+
+def test_temporarily_blocked_demand_remains_queued(v1_config):
+    scheduler = ResourceScheduler(v1_config.hardware)
+    key = ExpertKey(0, 1)
+    request = scheduler.enqueue_dma(
+        0, 10, key, "demand", 0, 0, on_start=lambda request, now: False
+    )
+    assert scheduler.start_next_dma(0) is None
+    assert scheduler.demand_queue == [request]
+
+
+def test_confirmed_prefetch_can_be_promoted_without_changing_accounting(v1_config):
+    scheduler = ResourceScheduler(v1_config.hardware)
+    request = scheduler.enqueue_dma(0, 10, ExpertKey(1, 2), "prefetch", 0, 1)
+    assert scheduler.promote_queued_prefetch(request.key)
+    event = scheduler.start_next_dma(0)
+    assert event.prefetch_or_demand == "prefetch"
+    assert not scheduler.prefetch_queue
+
+
+def test_required_loads_follow_routing_order_across_original_queue_kinds(v1_config):
+    scheduler = ResourceScheduler(v1_config.hardware)
+    first = ExpertKey(1, 5)
+    second = ExpertKey(1, 2)
+    scheduler.enqueue_dma(0, 10, second, "prefetch", 0, 1)
+    scheduler.enqueue_dma(0, 10, first, "demand", 0, 1)
+    scheduler.prioritize_required([first, second])
+    event = scheduler.start_next_dma(0)
+    assert event.expert_id == first.expert_id
+    scheduler.advance_dma(event.end_cycle)
+    assert scheduler.active_dma.event.expert_id == second.expert_id
+    assert scheduler.active_dma.event.prefetch_or_demand == "prefetch"

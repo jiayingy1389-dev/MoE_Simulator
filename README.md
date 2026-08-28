@@ -1,6 +1,6 @@
-# MoE V0 Performance Simulator
+# MoE V0/V1 Performance Simulator
 
-这是一个用于理解单层 Mixture-of-Experts 在 decode 阶段执行顺序的性能/架构模拟器。它不进行矩阵数值计算，只记录 operations、传输 bytes、依赖关系、起止周期和 KV 状态。
+这是一个用于理解 Mixture-of-Experts 在 decode 阶段执行顺序的性能/架构模拟器：V0 展示单层串行流程，V1 展示 24 层 cache/prefetch 与多资源重叠。它不进行矩阵数值计算，只记录 operations、传输 bytes、依赖关系、起止周期和 KV 状态。
 
 ## 运行
 
@@ -178,6 +178,64 @@ token 1 latency: 132 cycles
 - batch 大于 1、并发 request
 - 精确 Attention kernel、具体 VEK280 参数
 
-## 后续建议（未实现）
+## V0 的后续扩展说明
 
-V1 可在保留现有事件和公式接口的前提下，引入双资源重叠调度、Expert 权重缓存/预取、多 DMA channel 或多 compute unit。扩展前应先增加资源冲突与依赖测试，避免改变 V0 串行语义。
+下面的 V1 已在独立 package 中实现双资源流量、Expert 权重缓存和预取，同时没有改变 V0 串行语义。多 DMA channel、多 compute unit 与 tile streaming 仍未实现。
+
+## V1：多层 KV、Expert Cache 与预取
+
+V1 是独立新增的 24 层、单 request、batch=1 decode 模拟器；V0 的命令、文件和串行语义均未改变。运行默认预取实验和 demand-only 对照实验：
+
+```powershell
+python -m simulator.v1.cli configs/v1_qwen_synthetic.yaml --output-dir outputs/v1
+python -m simulator.v1.cli configs/v1_qwen_baseline.yaml --output-dir outputs/v1_baseline
+```
+
+默认模型只模拟 Qwen1.5-MoE-A2.7B 的 60 个 routed Experts，24 层、Top-4、H=2048、F=1408。shared Expert、dense/QKV 权重及其流量未逐项模拟，由固定预留空间抽象表示。request 含 32 个 prompt token 和 96 个 decode token；prefill 时间不模拟。
+
+默认硬件为 32 MiB OCM，其中固定预留 3 MiB、完整 Expert workspace 5 MiB。片外带宽 `200 GB/s` 使用十进制字节，在 300 MHz 下约为 666.67 bytes/cycle；片上 KV read 为 4096 bytes/cycle；Compute 为 3333 operations/cycle。`compute_tops` 仅为说明字段，周期计算使用整数 `compute_ops_per_cycle`。
+
+每个 routed Expert 的完整权重为 4,325,376 bytes：
+
+```text
+Expert bytes = ceil(3 * H * F * weight_bits / 8)
+Gate/Up operations = 4 * H * F
+Down operations = 2 * H * F
+```
+
+V1 每次必须先完成整个 Expert 的 DMA，再串行执行 Gate/Up 与 Down；没有 weight tile streaming。默认一次完整 DMA 为 6,509 cycles，Gate/Up 与 Down 计算分别约 3,462 和 1,732 cycles。后续版本才考虑“读够一个 tile 就开始算”。
+
+每层、每 token 的 KV 为 8 KiB。prompt KV 初始总量 6 MiB；每个完整 decode token 在 24 层累计新增 192 KiB；96 个 decode token 后为 24 MiB。KV 在 request 生命周期内始终驻留片上、优先级高于 Expert cache；V1 不做 KV 迁移、逐出或片外 spill。CSV/summary 在 request 释放前采样，所以 `final_kv_bytes` 为 24 MiB；生命周期结束后的整体释放是模型假设，不额外生成资源事件。
+
+动态 Expert cache 容量为：
+
+```text
+32 MiB - 3 MiB fixed - 5 MiB workspace - 当前 KV
+```
+
+cache key 是 `(layer_id, expert_id)`，不同层的同编号 Expert 不共享。状态包括 `LOADING`、`RESIDENT`、`REQUIRED` 和 `IN_COMPUTE`；加载中、Router 已确认属于本层 Top-K、以及计算中的 Expert 都不可逐出。可逐出项采用确定性 LRU，无 write-back。正常 cache 因受保护项暂时无法 admission 或容量小于一个 Expert 时，当前正在等待的真实 demand 可串行使用完整 workspace；prefetch 不能使用 workspace，也不能提前占用 workspace。每个非末层 Router 都会继续生成下一层预测，无法 admission 的 speculative 请求在 DMA head 处跳过。
+
+V1 使用三个互相独立、各自串行的资源：
+
+- `OFF_CHIP_DMA`：一个不可抢占 DMA；已排队的必需 load 优先于 speculative prefetch。
+- `ON_CHIP_KV_READ`：读取该层当前完整 context 的 KV。
+- `COMPUTE`：Attention、Router、Gate/Up 和 Down 共用一个计算单元。
+
+不同资源的半开区间事件可以重叠。预测器在 Layer L 的 Router 后预测 L+1；错误的 queued prefetch 无流量取消，已经开始的错误传输必须完成并计入 wasted bytes。真实使用前完成的 prefetch 才计入 useful bytes。
+
+每个输出目录包含：
+
+- `v1_token_state.csv`：每个 decode token 的起止周期、context length、片上 KV、动态 Expert cache 容量/占用、resident 数和 eviction 数。
+- `v1_resource_timeline.csv`：三个资源的逐事件起止周期、操作、层/Expert、bytes、demand/prefetch 与预测正确性。
+- `v1_summary.json`：周期、KV、hit/miss、预测准确率、useful/wasted/demand 字节、等待和资源重叠。
+- `v1_kv_and_expert_cache_over_time.png`：KV 增长、动态 cache 容量和实际 cache 占用。
+- `v1_bandwidth_over_time.png`：片外 Expert DMA 与片上 KV read 分开的利用率子图。
+
+字节统计满足：
+
+```text
+total_expert_dma_bytes
+  = useful_prefetch_bytes + wasted_prefetch_bytes + demand_expert_bytes
+```
+
+当前默认完整实验的结果是：预取版 87,585,190 cycles，demand-only baseline 89,411,592 cycles，预取使总周期下降约 2.04%（baseline/预取约 1.021×）。预取版实际使用 13,287,555,072 useful prefetch bytes，同时产生 2,119,434,240 wasted prefetch bytes；Expert cache hit rate 为 33.33%。这说明在 32 MiB OCM 和完整 Expert 加载限制下，跨层预取仍能隐藏一部分 demand 等待，但容量压力和错误预测会显著削弱收益；后续 tile streaming 可能进一步改善重叠。

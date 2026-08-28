@@ -66,3 +66,16 @@ def test_capacity_shrink_evicts_residents_but_not_protected_entries():
     evictions, blocked = cache.evict_for_capacity(0)
     assert not evictions
     assert blocked
+
+
+def test_router_required_entry_is_protected_until_compute():
+    cache = ExpertCache(expert_bytes=10, workspace_bytes=12)
+    item = key(0, 0)
+    cache.reserve_load(item, 10, "prefetch", 0)
+    cache.mark_resident(item)
+    cache.mark_required(item)
+    assert cache.entries[item].state == CacheEntryState.REQUIRED
+    assert cache.reserve_load(key(0, 1), 10, "prefetch", 1).status == "skipped"
+    cache.begin_compute(item, 2)
+    cache.finish_compute(item)
+    assert cache.entries[item].state == CacheEntryState.RESIDENT

@@ -62,6 +62,14 @@ def test_prefetch_produces_dma_compute_overlap_and_no_waste_at_accuracy_one(v1_c
     assert result.summary.useful_prefetch_bytes > 0
     assert result.summary.wasted_prefetch_bytes == 0
     assert result.summary.observed_prediction_accuracy == 1.0
+    gates = {
+        (event.token_id, event.layer_id, event.expert_id): event.start_cycle
+        for event in result.events if event.operation == "EXPERT_GATE_UP"
+    }
+    assert all(
+        gates[(event.token_id, event.layer_id, event.expert_id)] >= event.end_cycle
+        for event in result.events if event.prefetch_or_demand == "prefetch"
+    )
 
 
 def test_prefetch_disabled_is_demand_only_baseline(v1_config_dict):
@@ -100,3 +108,46 @@ def test_dma_bytes_and_on_chip_capacity_are_conserved(v1_config_dict):
 def test_same_seed_is_exactly_deterministic(v1_config_dict):
     config = small_config(v1_config_dict, True, 0.8)
     assert V1Simulator(config).run().to_dict() == V1Simulator(config).run().to_dict()
+
+
+def test_every_resource_event_uses_a_valid_decode_token_id(v1_config_dict):
+    config = small_config(v1_config_dict, True, 0.0)
+    result = V1Simulator(config).run()
+    assert all(0 <= event.token_id < config.request.decode_tokens
+               for event in result.events)
+
+
+def test_kv_growth_evictions_are_counted_separately(v1_config_dict):
+    model = v1_config_dict["model"]
+    model.update({
+        "num_layers": 3, "hidden_size": 256,
+        "expert_intermediate_size": 512, "num_routed_experts": 6,
+        "top_k": 2, "num_kv_heads": 64, "head_dim": 1024,
+        "weight_bits": 8, "kv_bits": 8,
+        "attention_ops_per_context_token": 4,
+    })
+    v1_config_dict["request"].update({"prompt_tokens": 2, "decode_tokens": 3})
+    v1_config_dict["hardware"].update({
+        "on_chip_memory_mib": 4, "fixed_reserved_mib": 1,
+        "expert_workspace_mib": 1, "off_chip_bandwidth_gbps": 10,
+        "compute_ops_per_cycle": 1024,
+    })
+    v1_config_dict["prefetch"].update({
+        "prefetch_enabled": True, "prediction_accuracy": 1.0,
+    })
+    config = V1Config.from_dict(v1_config_dict)
+    simulator = V1Simulator(config)
+    result = simulator.run()
+    assert result.summary.kv_eviction_count > 0
+    assert result.summary.kv_eviction_count <= result.summary.total_eviction_count
+    assert sum(state.kv_eviction_count for state in result.token_states) == (
+        result.summary.kv_eviction_count
+    )
+    assert simulator.prediction_total == (
+        (config.model.num_layers - 1)
+        * config.request.decode_tokens
+        * config.model.top_k
+    )
+    assert result.summary.demand_expert_bytes == (
+        result.summary.cache_misses * simulator.expert_size
+    )

@@ -60,6 +60,12 @@ class V1Summary:
     initial_kv_bytes: int
     final_kv_bytes: int
     peak_kv_bytes: int
+    peak_expert_cache_bytes: int
+    expert_cache_hits: int
+    expert_cache_misses: int
+    expert_cache_hit_rate: float
+    expert_evictions: int
+    kv_triggered_expert_evictions: int
     cache_hits: int
     cache_misses: int
     cache_hit_rate: float

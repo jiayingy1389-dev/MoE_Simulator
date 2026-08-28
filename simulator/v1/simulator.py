@@ -60,14 +60,22 @@ class V1Simulator:
         self.demand_expert_bytes = 0
         self.expert_wait_cycles = 0
         self.completed_loads: Set[ExpertKey] = set()
+        self.completed_load_kind: Dict[ExpertKey, str] = {}
         self.pending_loads: Dict[ExpertKey, DMARequest] = {}
         self.prefetch_requests: Dict[ExpertKey, DMARequest] = {}
         self.unclassified_prefetch: Dict[ExpertKey, int] = {}
         self.kv_capacity_exceeded = False
+        self.required_keys: Set[ExpertKey] = set()
+        self.peak_cache_bytes = 0
+        self.waiting_key: Optional[ExpertKey] = None
 
-    def _classify_evictions(self, evictions: List[Eviction]) -> None:
+    def _classify_evictions(
+        self, evictions: List[Eviction], kv_triggered: bool = False
+    ) -> None:
         for eviction in evictions:
             self.total_evictions += 1
+            if kv_triggered:
+                self.kv_evictions += 1
             self.completed_loads.discard(eviction.key)
             if eviction.prefetched and not eviction.used:
                 size = self.unclassified_prefetch.pop(eviction.key, 0)
@@ -78,11 +86,40 @@ class V1Simulator:
             request.key, self.kv.cache_capacity_bytes, request.kind, now
         )
         self._classify_evictions(list(admission.evictions))
+        if admission.status == "blocked" and request.kind == "demand":
+            if (
+                request.key == self.waiting_key
+                and self.cache.reserve_workspace(request.key)
+            ):
+                admission = type(admission)("workspace", admission.evictions)
+        if (
+            admission.status == "workspace"
+            and request.key != self.waiting_key
+        ):
+            self.cache.workspace_key = None
+            return False
+        self.peak_cache_bytes = max(
+            self.peak_cache_bytes, self.cache.occupancy_bytes
+        )
+        if request.kind == "prefetch" and admission.status not in (
+            "cache", "workspace", "existing"
+        ):
+            self.pending_loads.pop(request.key, None)
+            self.prefetch_requests.pop(request.key, None)
         return admission.status in ("cache", "workspace", "existing")
 
     def _load_complete(self, request: DMARequest, now: int) -> None:
-        self.cache.mark_resident(request.key)
+        # A completed demand is already committed to this layer's compute and
+        # stays protected (LOADING) until begin_compute changes its state.
+        # A speculative completion may be evicted before use, so it becomes
+        # RESIDENT immediately.
+        if request.key in self.required_keys:
+            self.cache.mark_resident(request.key)
+            self.cache.mark_required(request.key)
+        elif request.kind == "prefetch":
+            self.cache.mark_resident(request.key)
         self.completed_loads.add(request.key)
+        self.completed_load_kind[request.key] = request.kind
         self.pending_loads.pop(request.key, None)
         if request.kind == "demand":
             self.demand_expert_bytes += request.bytes
@@ -115,8 +152,9 @@ class V1Simulator:
             self.prefetch_requests[key] = request
         return request
 
-    def _wait_for_load(self, key: ExpertKey, now: int) -> int:
+    def _wait_for_load(self, key: ExpertKey, now: int, token_id: int) -> int:
         start = now
+        self.waiting_key = key
         while key not in self.completed_loads:
             self.scheduler.advance_dma(now)
             if key in self.completed_loads:
@@ -125,10 +163,23 @@ class V1Simulator:
             if active is None:
                 event = self.scheduler.start_next_dma(now)
                 if event is None:
-                    raise RuntimeError("Expert load was skipped or blocked: {}".format(key))
+                    if key not in self.pending_loads:
+                        self._enqueue_load(key, "demand", now, token_id)
+                        continue
+                    raise RuntimeError(
+                        "Expert load blocked: key={}, workspace={}, pending={}, "
+                        "demand_queue={}, cache_capacity={}, cache_occupancy={}".format(
+                            key, self.cache.workspace_key,
+                            self.pending_loads.get(key),
+                            [request.key for request in self.scheduler.demand_queue],
+                            self.kv.cache_capacity_bytes,
+                            self.cache.occupancy_bytes,
+                        )
+                    )
                 active = self.scheduler.active_dma
             now = active.event.end_cycle
             self.scheduler.advance_dma(now)
+        self.waiting_key = None
         self.expert_wait_cycles += now - start
         return now
 
@@ -138,7 +189,7 @@ class V1Simulator:
             raise KVCapacityExceeded()
         while True:
             evictions, blocked = self.cache.evict_for_capacity(required_capacity)
-            self._classify_evictions(evictions)
+            self._classify_evictions(evictions, kv_triggered=True)
             if not blocked:
                 return now
             active = self.scheduler.active_dma
@@ -157,6 +208,9 @@ class V1Simulator:
                     self.pending_loads.pop(key, None)
                 else:
                     self.scheduler.mark_inflight_prefetch_wrong(key)
+        self.required_keys.update(actual)
+        for key in actual:
+            self.cache.mark_required(key)
 
     def _enqueue_prediction(self, token_id: int, layer_id: int, now: int) -> None:
         if not self.config.prefetch.prefetch_enabled:
@@ -176,15 +230,22 @@ class V1Simulator:
     def _use_expert(self, key: ExpertKey, now: int, token_id: int) -> int:
         entry = self.cache.entries.get(key)
         pending = self.pending_loads.get(key)
-        if entry is not None and entry.state == CacheEntryState.RESIDENT:
+        if entry is not None and entry.state in (
+            CacheEntryState.RESIDENT, CacheEntryState.REQUIRED
+        ):
             pass
         elif pending is not None or (
             entry is not None and entry.state == CacheEntryState.LOADING
         ):
-            now = self._wait_for_load(key, now)
+            now = self._wait_for_load(key, now, token_id)
         else:
             self._enqueue_load(key, "demand", now, token_id)
-            now = self._wait_for_load(key, now)
+            now = self._wait_for_load(key, now, token_id)
+
+        if self.completed_load_kind.get(key) == "demand":
+            self.cache_misses += 1
+        else:
+            self.cache_hits += 1
 
         prefetched = self.unclassified_prefetch.pop(key, 0)
         self.useful_prefetch_bytes += prefetched
@@ -212,7 +273,9 @@ class V1Simulator:
         )
         self.scheduler.advance_dma(down.end_cycle)
         self.cache.finish_compute(key)
+        self.required_keys.discard(key)
         self.completed_loads.discard(key)
+        self.completed_load_kind.pop(key, None)
         return down.end_cycle
 
     def _run_layer(self, token_id: int, layer_id: int, now: int) -> int:
@@ -246,27 +309,23 @@ class V1Simulator:
             operations=route_ops,
         )
         now = router.end_cycle + self.config.prefetch.predictor_latency_cycles
-        actual = {
+        actual_keys = [
             ExpertKey(layer_id, expert_id)
             for expert_id in self.routing.get_active_experts(token_id, layer_id)
-        }
+        ]
+        actual = set(actual_keys)
         self._resolve_current_predictions(actual)
-        for key in actual:
+        for key in actual_keys:
+            self.scheduler.promote_queued_prefetch(key)
+        for key in actual_keys:
             entry = self.cache.entries.get(key)
             pending = self.pending_loads.get(key)
-            if entry is not None and (
-                entry.state == CacheEntryState.RESIDENT or entry.prefetched
-            ):
-                self.cache_hits += 1
-            elif pending is not None and pending.kind == "prefetch":
-                self.cache_hits += 1
-            else:
-                self.cache_misses += 1
             if pending is None and entry is None:
                 self._enqueue_load(key, "demand", now, token_id)
+        self.scheduler.prioritize_required(actual_keys)
         self._enqueue_prediction(token_id, layer_id, now)
         self.scheduler.advance_dma(now)
-        for key in sorted(actual, key=lambda item: item.expert_id):
+        for key in actual_keys:
             now = self._use_expert(key, now, token_id)
         return now
 
@@ -281,6 +340,14 @@ class V1Simulator:
             initial_kv_bytes=self.initial_kv_bytes,
             final_kv_bytes=self.kv.total_bytes,
             peak_kv_bytes=self.kv.peak_bytes,
+            peak_expert_cache_bytes=self.peak_cache_bytes,
+            expert_cache_hits=self.cache_hits,
+            expert_cache_misses=self.cache_misses,
+            expert_cache_hit_rate=(
+                self.cache_hits / total_accesses if total_accesses else 0.0
+            ),
+            expert_evictions=self.total_evictions,
+            kv_triggered_expert_evictions=self.kv_evictions,
             cache_hits=self.cache_hits,
             cache_misses=self.cache_misses,
             cache_hit_rate=(self.cache_hits / total_accesses if total_accesses else 0.0),
@@ -307,7 +374,7 @@ class V1Simulator:
         try:
             for token_id in range(self.config.request.decode_tokens):
                 token_start = now
-                evictions_before = self.total_evictions
+                kv_evictions_before = self.kv_evictions
                 for layer_id in range(self.config.model.num_layers):
                     now = self._run_layer(token_id, layer_id, now)
                 self.scheduler.advance_dma(now)
@@ -321,7 +388,7 @@ class V1Simulator:
                         expert_cache_capacity_bytes=self.kv.cache_capacity_bytes,
                         expert_cache_occupancy_bytes=self.cache.occupancy_bytes,
                         resident_expert_count=self.cache.resident_count,
-                        kv_eviction_count=self.total_evictions - evictions_before,
+                        kv_eviction_count=self.kv_evictions - kv_evictions_before,
                         total_eviction_count=self.total_evictions,
                     )
                 )

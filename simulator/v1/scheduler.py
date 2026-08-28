@@ -93,6 +93,9 @@ class ResourceScheduler:
             request = queue.pop(0)
             start = max(now, self.dma_available, request.enqueue_cycle)
             if request.on_start is not None and not request.on_start(request, start):
+                if request.kind == "demand":
+                    self.demand_queue.insert(0, request)
+                    return None
                 continue
             duration = dma_cycles(request.bytes, self.hardware)
             event = ResourceEvent(
@@ -127,6 +130,35 @@ class ResourceScheduler:
                 self.prefetch_queue.pop(index)
                 return True
         return False
+
+    def promote_queued_prefetch(self, key: ExpertKey) -> bool:
+        """Move a Router-confirmed prefetch into the required-load queue."""
+        for index, request in enumerate(self.prefetch_queue):
+            if request.key == key:
+                self.prefetch_queue.pop(index)
+                self.demand_queue.append(request)
+                return True
+        return False
+
+    def prioritize_required(self, keys: List[ExpertKey]) -> None:
+        """Order all queued loads for a resolved Top-K in execution order."""
+        by_key = {
+            request.key: request
+            for request in self.demand_queue + self.prefetch_queue
+            if request.key in keys
+        }
+        if not by_key:
+            return
+        required = [by_key[key] for key in keys if key in by_key]
+        selected_ids = {id(request) for request in required}
+        self.demand_queue = required + [
+            request for request in self.demand_queue
+            if id(request) not in selected_ids
+        ]
+        self.prefetch_queue = [
+            request for request in self.prefetch_queue
+            if id(request) not in selected_ids
+        ]
 
     def mark_inflight_prefetch_wrong(self, key: ExpertKey) -> bool:
         if (self.active_dma is not None
